@@ -90,15 +90,58 @@ module processor(
     output [31:0] data_writeReg;
     input [31:0] data_readRegA, data_readRegB;
 
-    /* YOUR CODE STARTS HERE */
+    ///////////////////////////////////////////////////////* YOUR CODE STARTS HERE *//////////////////////////////////////////////////////////
 	 
-	 //  fetch code wire declaration
 	 reg [11:0] address_imem;
-	 reg [11:0] imme_addr_next;
-	
-	 //  decode instruction wire declaration
+	 
+	 // fetch from instruction
 	 wire [4:0] opcode, rs, rt, rd, shamt;
-	 wire [16:0] imme_num;
+	 wire [5:0] ALUop;
+	 wire [15:0] immediate;
+	 
+	 assign opcode[4:0] = q_imem[31:27];
+	 assign rs[4:0] = q_imem[26:22];
+	 assign rs[4:0] = q_imem[21:17];
+	 assign rd[4:0] = q_imem[16:12];
+	 assign ALUop[5:0] = q_imem[5:0];
+	 assign immediate[15:0] = q_imem[15:0]
+	 
+	 //  control bits wire declaration
+	 wire ctrl_writeEnable, ctrl_writeEnable_raw,  ctrl_writeEnable_and_clock;
+	 wire Rdst, ALUinB, wren_raw, wren, Rwd, JP, EXP, except_sel, BNE, JAL, JR, BLT, BEX, SETX;
+	 wire [31:0] exception;
+	 
+	 
+	 
+	 // regfile params
+	 wire [4:0] s1, s2, d;
+	 assign s1 = rs;
+	 assign s2 = rt;
+	 MUX2_1_5b mux0(rt, immediate, Rdst, d); // 1->rt, 0->immediate
+	 
+	 regfile(clock, ctrl_writeEnable, reset, ctrl_writeReg, ctrl_readRegA, ctrl_readRegB, data_writeReg, data_readRegA, data_readRegB);
+	 
+	 
+	 
+	 // alu params
+	 wire [31:0] alu_res;
+	 wire isNotEqual, isLessThan, overflow;
+	 wire [31:0] alu_in1, alu_in2;
+	 wire [31:0] extend_imme;
+	 
+	 sign_extend SX(immediate, extend_imme);
+	 MUX2_1_32b mux1();
+	 
+	 
+	 
+	 
+	 alu ALU(data_readRegA, data_readRegB, ALUop, shamt, alu_res, isNotEqual, isLessThan, overflow);
+	 
+
+	 
+	 
 
 
 endmodule
+
+

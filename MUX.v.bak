@@ -1,0 +1,8 @@
+module MUX2_1(in1, in2, selctor, out);
+	input in1, in2;
+	input selector;
+	output out;
+	
+	out = selector:in1?in2
+
+endmodule

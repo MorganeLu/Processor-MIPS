@@ -60,3 +60,5 @@ set_global_assignment -name VERILOG_FILE "cpuone-base/dmem.v"
 set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 set_global_assignment -name VERILOG_FILE sign_extend.v
+set_global_assignment -name VERILOG_FILE MUX.v
+set_global_assignment -name VERILOG_FILE shift.v

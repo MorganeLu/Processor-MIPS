@@ -1,0 +1,7 @@
+module shift2(in, out);
+	input in;
+	output out;
+	
+	
+
+endmodule
