@@ -96,19 +96,19 @@ module processor(
 	 
 	 // fetch from instruction
 	 wire [4:0] opcode, rs, rt, rd, shamt;
-	 wire [5:0] ALUop;
+	 wire [5:0] alu_func;
 	 wire [15:0] immediate;
 	 
 	 assign opcode[4:0] = q_imem[31:27];
 	 assign rs[4:0] = q_imem[26:22];
 	 assign rs[4:0] = q_imem[21:17];
 	 assign rd[4:0] = q_imem[16:12];
-	 assign ALUop[5:0] = q_imem[5:0];
+	 assign alu_func[5:0] = q_imem[5:0];
 	 assign immediate[15:0] = q_imem[15:0]
 	 
 	 //  control bits wire declaration
-	 wire ctrl_writeEnable, ctrl_writeEnable_raw,  ctrl_writeEnable_and_clock;
-	 wire Rdst, ALUinB, wren_raw, wren, Rwd, JP, EXP, except_sel, BNE, JAL, JR, BLT, BEX, SETX;
+	 //wire ctrl_writeEnable, ctrl_writeEnable_raw,  ctrl_writeEnable_and_clock;
+	 wire Rwe, Rdst, ALUinB, ALUop, DMwe, Rwd;
 	 wire [31:0] exception;
 	 
 	 
@@ -119,7 +119,7 @@ module processor(
 	 assign s2 = rt;
 	 MUX2_1_5b mux0(rt, immediate, Rdst, d); // 1->rt, 0->immediate
 	 
-	 regfile(clock, ctrl_writeEnable, reset, ctrl_writeReg, ctrl_readRegA, ctrl_readRegB, data_writeReg, data_readRegA, data_readRegB);
+	 regfile(clock, Rwe, reset, ctrl_writeReg, ctrl_readRegA, ctrl_readRegB, data_writeReg, data_readRegA, data_readRegB);
 	 
 	 
 	 
@@ -129,13 +129,14 @@ module processor(
 	 wire [31:0] alu_in1, alu_in2;
 	 wire [31:0] extend_imme;
 	 
+	 assign alu_in1 = data_readRegA;
 	 sign_extend SX(immediate, extend_imme);
-	 MUX2_1_32b mux1();
+	 MUX2_1_32b mux1(extend_imme, data_readRegB, ALUinB, alu_in2);
 	 
 	 
 	 
 	 
-	 alu ALU(data_readRegA, data_readRegB, ALUop, shamt, alu_res, isNotEqual, isLessThan, overflow);
+	 alu ALU(alu_in1, alu_in2, alu_func, shamt, alu_res, isNotEqual, isLessThan, overflow);
 	 
 
 	 
