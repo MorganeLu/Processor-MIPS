@@ -90,59 +90,85 @@ module processor(
     output [31:0] data_writeReg;
     input [31:0] data_readRegA, data_readRegB;
 
-    ///////////////////////////////////////////////////////* YOUR CODE STARTS HERE *//////////////////////////////////////////////////////////
+    /* YOUR CODE STARTS HERE */
 	 
-	 reg [11:0] address_imem;
+
+	 /***  IF stage  ***/
+	 wire [31:0] pc_in, pc_out;
 	 
-	 // fetch from instruction
-	 wire [4:0] opcode, rs, rt, rd, shamt;
-	 wire [5:0] alu_func;
-	 wire [15:0] immediate;
-	 
-	 assign opcode[4:0] = q_imem[31:27];
-	 assign rs[4:0] = q_imem[26:22];
-	 assign rs[4:0] = q_imem[21:17];
-	 assign rd[4:0] = q_imem[16:12];
-	 assign alu_func[5:0] = q_imem[5:0];
-	 assign immediate[15:0] = q_imem[15:0]
-	 
-	 //  control bits wire declaration
-	 //wire ctrl_writeEnable, ctrl_writeEnable_raw,  ctrl_writeEnable_and_clock;
-	 wire Rwe, Rdst, ALUinB, ALUop, DMwe, Rwd;
-	 wire [31:0] exception;
+	 pc_counter pc_counter1(.clock(clock), .reset(reset), .pc_in(pc_in), .pc_out(pc_out));
+	 assign address_imem = pc_out[11:0];
 	 
 	 
 	 
-	 // regfile params
-	 wire [4:0] s1, s2, d;
-	 assign s1 = rs;
-	 assign s2 = rt;
-	 MUX2_1_5b mux0(rt, immediate, Rdst, d); // 1->rt, 0->immediate
+	 /***  ID stage  ***/
+	 wire [31:0] inst_code;
+	 wire [7:0]  alu_code;
+	 wire ctrl_ALU_integer;
 	 
-	 regfile(clock, Rwe, reset, ctrl_writeReg, ctrl_readRegA, ctrl_readRegB, data_writeReg, data_readRegA, data_readRegB);
+	 decoder_5to32 instr_decoder(q_imem[31:27], inst_code);
+	 decoder_3to8  aluop_decoder(q_imem[4:2], alu_code);
 	 
+	 or Int_ctr1(ctrl_ALU_integer, inst_code[5], inst_code[7], inst_code[8]);	// addi/sw/lw; Integer in ALU_dataB
+	 or write_reg(ctrl_writeEnable, inst_code[0], inst_code[5], inst_code[8]);	// ALU/addi/lw; write data to Regfile
+	 assign wren = inst_code[7];		// sw; save data to MEM
+	 assign ctrl_alu_dmem = inst_code[8];	// lw; load data from MEM
 	 
-	 
-	 // alu params
-	 wire [31:0] alu_res;
+	 assign ctrl_readRegA = q_imem[21:17];
+	 assign ctrl_readRegB = q_imem[16:12];
+		
+		
+	 /***  ALU  ***/
+	 wire [31:0] Immediate_N, alu_datain_B, ALU_dataout, ALU_dataout_calc;
+	 wire [4:0] ALUopcode;
 	 wire isNotEqual, isLessThan, overflow;
-	 wire [31:0] alu_in1, alu_in2;
-	 wire [31:0] extend_imme;
 	 
-	 assign alu_in1 = data_readRegA;
-	 sign_extend SX(immediate, extend_imme);
-	 MUX2_1_32b mux1(extend_imme, data_readRegB, ALUinB, alu_in2);
+	 mux_2to1_5b mux_2to1_5b_1(.in0(q_imem[6:2]), .in1(5'd00000), .select(ctrl_ALU_integer), .out(ALUopcode));	// addi/lw/sw or ALU operation
+	 
+	 // get immediate value
+	 assign Immediate_N[31:17] = q_imem[16] == 1 ? 15'h7FFF : 15'h0000;
+	 assign Immediate_N[16:0]  = q_imem[16:0];
+	 
+	 mux_2to1_32b mux_immediate_regB(.in0(data_readRegB), .in1(Immediate_N), .select(ctrl_ALU_integer), .out(alu_datain_B)); // immediate or regB
+	 
+	 alu my_ALU(
+		.data_operandA(data_readRegA),
+		.data_operandB(alu_datain_B),
+		.ctrl_ALUopcode(ALUopcode),
+		.ctrl_shiftamt(q_imem[11:7]),
+		.data_result(ALU_dataout_calc), 
+		.isNotEqual(isNotEqual), 
+		.isLessThan(isLessThan), 
+		.overflow(overflow)
+	 );
+		
+	 /***  Overflow  ***/
+	 wire is_add_overflow,is_sub_overflow,is_addi_overflow,is_ovf;
+	 wire [31:0] ALU_dataout_ovf;
+	 
+	 and (is_add_overflow,overflow,alu_code[0]);//add
+	 and (is_sub_overflow,overflow,alu_code[1]);//sub
+	 and (is_addi_overflow,overflow,inst_code[5]);//addi
+	 or(is_ovf,is_add_overflow,is_sub_overflow,is_addi_overflow);
+	 
+	 assign ALU_dataout_ovf = is_ovf ? (is_add_overflow ? 32'd1 : (is_sub_overflow ? 32'd3 : 32'd2)) : 32'd0;
+	 assign ALU_dataout = is_ovf ? ALU_dataout_ovf : ALU_dataout_calc;
 	 
 	 
 	 
+	 /***  dMEM  ***/
+	 wire [31:0] MEM_dataout;
+	 assign data[31:0] = data_readRegB[31:0];
+	 assign address_dmem[11:0] = ALU_dataout[11:0];
+	 mux_2to1_32b mux_ALU_MEM(.in0(ALU_dataout), .in1(q_dmem), .select(ctrl_alu_dmem), .out(MEM_dataout));
 	 
-	 alu ALU(alu_in1, alu_in2, alu_func, shamt, alu_res, isNotEqual, isLessThan, overflow);
 	 
 
+
+	 
+	 /***  WB  ***/
+	 assign data_writeReg = MEM_dataout;
+	 assign ctrl_writeReg = is_ovf ? 5'b11110 : q_imem[26:22];
 	 
 	 
-
-
 endmodule
-
-
