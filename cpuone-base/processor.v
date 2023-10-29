@@ -169,6 +169,26 @@ module processor(
 	 /***  WB  ***/
 	 assign data_writeReg = MEM_dataout;
 	 assign ctrl_writeReg = is_ovf ? 5'b11110 : q_imem[26:22];
-	 
+
+	always @*
+		begin
+			$display("==========================================================");
+			$display("q_imem: %b", q_imem);
+			$display("opcode: %b", q_imem[31:27]);
+			$display("alu_code: %b", alu_code);
+			$display("ctrl writeReg: %b", ctrl_writeReg);	
+			$display("data_writeReg: %b", data_writeReg);		
+			$display("ALU_dataout_calc: %b", ALU_dataout_calc);
+			$display("overflow: %b", overflow);			
+			$display("Immediate_N: %b", Immediate_N);
+			$display("ctrl_readRegA: %b", ctrl_readRegA);
+			$display("ctrl_readRegB: %b", ctrl_readRegB);
+			
+			$display("data_readRegA: %b", data_readRegA);
+			$display("data_readRegB: %b", data_readRegB);
+			$display("alu_datain_B: %b", alu_datain_B);
+			
+			
+	 end
 	 
 endmodule
